@@ -1,6 +1,6 @@
 {
   "name": "whotop",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Identify look-alike node/python/agent processes: full command line, working directory, and the ports they hold.",
   "keywords": [
     "process",

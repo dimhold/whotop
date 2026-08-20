@@ -174,6 +174,11 @@ export function renderProcesses(processes: readonly ProcessView[], options: Rend
       if (view.orphan.value === true && view.orphan.note) {
         lines.push(`${pad}${palette('dim', 'orp')} ${palette('gray', view.orphan.note)}`);
       }
+      // A directory that was inferred is a claim, so under --explain it has to
+      // name what it was inferred from. The row above only shows the path.
+      if (view.cwd.value !== null && view.cwd.source === 'inferred' && view.cwd.note) {
+        lines.push(...wrap(`${pad}${palette('dim', 'via')} ${palette('gray', view.cwd.note)}`, width, indent + 4));
+      }
     }
   }
   return lines;

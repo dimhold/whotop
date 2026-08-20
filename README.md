@@ -25,6 +25,7 @@ whotop reads the process table and the socket table, then joins them and reads w
 - **the working directory** and the project it belongs to, so two `vite` processes are told apart by where they run
 - **an orphan flag**, because the process holding your port is usually the one whose parent already exited
 - **the name the system itself uses**, from the service registry, which needs no elevation and names processes that disclose nothing else
+- **the project a silent process is working on**, read off the dated directory it wrote at startup, which is how five identical `claude.exe --resume` rows stop being identical
 - **the evidence**, under `--explain`, so every role names the rule that produced it
 
 That last one earns its place. On a Windows machine with 443 processes, 164 disclosed no command line at all. The service registry named 115 of them, a WireGuard tunnel and CloudflareWARP among them, all of which had been reading as `unknown`. Linux answers the same question from `/proc/<pid>/cgroup`, which also says when a process is inside a container.
@@ -134,11 +135,11 @@ Every process attribute an operating system can refuse to disclose is wrapped so
 |---|---|---|---|---|
 | **Linux** | full, from `/proc/<pid>/cmdline` | your own always, others need root | full, `ss` or `/proc/net` joined by socket inode | full |
 | **macOS** | full, from `ps` | your own via `lsof`, others need root | full, from `lsof` | full |
-| **Windows** | partial, elevated processes withhold it | inferred from the command line only | full, `Get-NetTCPConnection` | none |
+| **Windows** | partial, elevated processes withhold it | inferred from the command line, or from a dated directory the process left | full, `Get-NetTCPConnection` | none |
 
 The Windows working directory is the sharp edge. Windows does not expose another process's cwd through any documented API short of walking its PEB with `ReadProcessMemory`, which needs matching bitness and debug rights and breaks on protected processes. whotop does not pretend. It infers a project directory from an absolute path in the command line and labels it `(inferred)`, or it says the value is unavailable. It never invents one.
 
-One case is worth naming, because the honest-looking answer was the wrong one. `C:\Users\me\.local\bin\claude.exe --resume` contains exactly one absolute path: its own. Reporting that directory made five agent sessions look as though they all worked inside their install folder. Nothing there was false, the field said `inferred`, and it was still useless. The directory a program lives in is not the directory it runs in, so that candidate is now rejected and the row says why it has nothing.
+One case is worth naming, because the honest-looking answer was the wrong one. `C:\Users\me\.local\bin\claude.exe --resume` contains exactly one absolute path: its own. Reporting that directory made five agent sessions look as though they all worked inside their install folder. Nothing there was false, the field said `inferred`, and it was still useless. The directory a program lives in is not the directory it runs in, so that candidate is rejected. The answer for those rows comes from somewhere else, below.
 
 The same honesty covers ports without an owner (a socket in `TIME_WAIT` after its process exited), command lines withheld by another user's elevated process, and start times on a kernel where `/proc/stat` was unreadable. A missing helper binary such as `ss` or `lsof` is a warning in the report, never a crash.
 
@@ -147,6 +148,34 @@ The same honesty covers ports without an owner (a socket in `TIME_WAIT` after it
 A process table tells you `node` and stops. Everything useful lives in the command line, so that is where the rules look. `npm run dev` driving vite, a `--user-data-dir` that points at an automation profile rather than your everyday browser, `@modelcontextprotocol` in the arguments, `--remote-debugging-port` on a Chrome child: each is a rule, and each rule carries the sentence it prints as evidence. A classification you cannot check is a guess with better manners, so `--explain` shows you the one that fired.
 
 Commands hidden inside a shell are unwrapped first. On Windows almost everything spawned from a script shows up as `cmd.exe` with the real command buried in caret escapes, so without unwrapping, half of a developer machine classifies as "cmd". whotop undoes the quoting the way `CommandLineToArgvW` does, then classifies the command that actually runs.
+
+## Naming a process by what it leaves on disk
+
+A process whose command line says nothing about its work often writes a directory that does. Claude Code creates `<temp>/claude/<encoded project path>/<session id>/` in the first seconds of a session, so a process that started at 18:48:22 and a directory created at 18:48:21 are the same session. That is the whole mechanism, and it is a time correlation, not a reading of the process.
+
+```
+15044  agent-session  claude         1d 15h
+       cwd D:\work\projects\shop-web (inferred)  [shop-web]
+       cmd C:\Users\dev\.local\bin\claude.exe --resume
+       via matched to D:\Temp\claude\D--work-projects-shop-web\85fa958f-..., created 1.9s from this
+           process start (Claude Code session 85fa958f); a time correlation inside a 45.0s window,
+           not a reading of the process
+```
+
+The sources are a table rather than code, because the idea is older than any one tool: where to look, how to read the names found there, how to turn a name into a project path. A new tool is a row plus a fixture. Only sources that were watched working on a real machine are in the table, since a rule reasoned out in the abstract would produce confident rows out of nothing.
+
+Two thresholds decide, both heuristics and both named constants in `src/traces.ts`:
+
+- **45 seconds** between the process start and the directory creation. Checked against six concurrent sessions on one machine: every one matched its own directory within 2.6 seconds, and the nearest directory belonging to a different project was 36.8 seconds away.
+- **2 seconds** between the best candidate and the next one. Inside that gap the timestamps cannot separate them, so if the two name different projects the row reports **nothing** and says why. Naming the wrong project confidently is the worse failure here: there is a kill key next to that row.
+
+What it will not do:
+
+- it never returns `exact`, only `inferred` with the directory and the time difference in the note, or `unavailable` with the reason
+- it never overwrites a directory the operating system actually disclosed
+- a directory name is a lossy encoding, since every punctuation character became a dash, so `example.dev` and `example-dev` are the same name. whotop decodes it by walking the disk and asking which real directory encodes to that name, and reports nothing when the answer is not unique or when the project has been renamed or deleted since
+- a session started before its trace directory was cleaned away, or on a machine where `TEMP` moved between runs, simply has no match, and the row says so
+- it only reads the disk when the process table actually contains a process some rule speaks for, so the common listing costs nothing
 
 ## As a library
 

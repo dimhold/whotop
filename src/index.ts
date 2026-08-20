@@ -11,6 +11,32 @@ export type { BuildOptions, InspectOptions, ProjectResolver } from './inspect.js
 export { classify, RULES, ALL_ROLES, INTERESTING_ROLES } from './classify.js';
 export type { ClassifyInput } from './classify.js';
 
+export {
+  TRACE_RULES,
+  TRACE_WINDOW_MS,
+  TRACE_TIE_MS,
+  encodePathSegment,
+  matchTrace,
+  resolveSlugPath,
+  rulesForProcess,
+  scanTraces,
+  scanTracesForProcesses,
+  splitSlugRoot,
+  traceIsInformative,
+  traceJoin,
+} from './traces.js';
+export type {
+  SlugResolution,
+  TraceEntry,
+  TraceEnv,
+  TraceIo,
+  TraceNames,
+  TraceOutcome,
+  TraceProblem,
+  TraceRule,
+  TraceSource,
+} from './traces.js';
+
 export { filterProcesses, holdersOfPort, sortProcesses, isDefaultVisible } from './filter.js';
 export type { FilterOptions, SortKey } from './filter.js';
 

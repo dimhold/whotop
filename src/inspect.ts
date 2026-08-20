@@ -2,15 +2,18 @@
  * Turns a raw collector result into the snapshot the CLI renders: ports joined
  * to their owners, roles classified, orphans detected, project names resolved.
  *
- * Everything here is pure apart from the optional project resolver, so the
- * whole join can be tested against fixtures without a live process table.
+ * Everything here is pure apart from the optional project resolver and the
+ * trace source, both of which are injected, so the whole join can be tested
+ * against fixtures without a live process table.
  */
 
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { classify } from './classify.js';
 import { createCollector } from './collectors/index.js';
+import { matchTrace, scanTracesForProcesses, traceIsInformative, TRACE_CAPABILITY_NOTE } from './traces.js';
 import { exact, inferred, unavailable } from './types.js';
+import type { TraceSource } from './traces.js';
 import type {
   CollectResult,
   Collector,
@@ -30,6 +33,8 @@ export interface BuildOptions {
   readonly capabilities: CollectorCapabilities;
   readonly now?: Date;
   readonly resolveProject?: ProjectResolver;
+  /** Traces already read off the disk. Absent means the question was not asked. */
+  readonly traces?: TraceSource | null;
 }
 
 /** Index ports by owning pid, sorted so the listening ones come first. */
@@ -123,20 +128,29 @@ export function buildSnapshot(result: CollectResult, options: BuildOptions): Sna
 
   const processes: ProcessView[] = result.processes.map((process) => {
     const ports = portsByPid.get(process.pid) ?? [];
+    // Traces are a last resort, not a preference: they only speak where the
+    // platform disclosed nothing, so a directory the OS actually reported is
+    // never overwritten by a time correlation.
+    let cwd = process.cwd;
+    if (options.traces && cwd.value === null) {
+      const outcome = matchTrace(process, options.traces);
+      if (traceIsInformative(outcome)) cwd = outcome.field;
+    }
     const classification = classify({
       name: process.name,
       exePath: process.exePath,
       commandLine: process.commandLine.value,
-      cwd: process.cwd.value,
+      cwd: cwd.value,
       ports,
     });
     const project =
-      process.cwd.value !== null
-        ? resolveProject(process.cwd.value)
+      cwd.value !== null
+        ? resolveProject(cwd.value)
         : unavailable<string>('the working directory is unknown, so the project cannot be resolved');
 
     return {
       ...process,
+      cwd,
       classification,
       ports,
       orphan: detectOrphan(process, byPid, options.platform),
@@ -151,10 +165,16 @@ export function buildSnapshot(result: CollectResult, options: BuildOptions): Sna
     warnings.push(`${unowned} socket(s) were reported without an owning process.`);
   }
 
+  // Say under --explain that some rows were named by a directory rather than
+  // by the process table, because that is a different kind of evidence.
+  const capabilities = options.traces
+    ? { ...options.capabilities, notes: [...options.capabilities.notes, TRACE_CAPABILITY_NOTE] }
+    : options.capabilities;
+
   return {
     platform: options.platform,
     capturedAt: now,
-    capabilities: options.capabilities,
+    capabilities,
     processes,
     warnings,
   };
@@ -164,15 +184,21 @@ export interface InspectOptions {
   readonly collector?: Collector;
   readonly now?: Date;
   readonly resolveProject?: ProjectResolver;
+  /** Pass a source to control the scan, or `null` to keep whotop off the disk. */
+  readonly traces?: TraceSource | null;
 }
 
 /** Collect from the running machine and build a snapshot. */
 export async function inspect(options: InspectOptions = {}): Promise<Snapshot> {
   const collector = options.collector ?? createCollector();
   const result = await collector.collect();
+  // Undefined means "look if it is worth looking", which is decided by the
+  // process table: no process a rule speaks for, no directory listing.
+  const traces = options.traces === undefined ? scanTracesForProcesses(result.processes) : options.traces;
   return buildSnapshot(result, {
     platform: collector.platform,
     capabilities: collector.capabilities,
+    traces,
     ...(options.now ? { now: options.now } : {}),
     ...(options.resolveProject ? { resolveProject: options.resolveProject } : {}),
   });
