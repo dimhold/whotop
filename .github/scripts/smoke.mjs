@@ -15,6 +15,8 @@
 import { spawnSync } from 'node:child_process';
 import { platform } from 'node:process';
 
+const NL = String.fromCharCode(10);
+
 const CLI = 'dist/cli.js';
 let failures = 0;
 
@@ -26,11 +28,15 @@ const run = (args) => {
 const check = (name, ok, detail) => {
   if (ok) {
     console.log(`  ok    ${name}`);
-  } else {
-    failures += 1;
-    console.log(`  FAIL  ${name}`);
-    if (detail) console.log(String(detail).split('\n').map((l) => `        ${l}`).join('\n'));
+    return;
   }
+  failures += 1;
+  console.log(`  FAIL  ${name}`);
+  // A failure here is read from a CI log by somebody who cannot reproduce it,
+  // so it says what it saw. The detail may be a function, because building it
+  // is only worth doing when there is a failure to explain.
+  const said = typeof detail === "function" ? detail() : detail;
+  if (said) console.log(String(said).split(NL).map((line) => `        ${line}`).join(NL));
 };
 
 console.log(`whotop smoke test on ${platform}`);
@@ -60,11 +66,19 @@ if (snapshot) {
     `${named.length} of ${snapshot.processes.length} named`,
   );
 
-  // The runner is a node process running this script, so at least one node
-  // process must be in there. If it is not, the collector missed the machine
-  // it was standing on.
-  const anyNode = (snapshot.processes ?? []).some((p) => /node/i.test(p.name ?? ''));
-  check('the collector can see node itself', anyNode);
+  // The strongest thing checkable from here: this very script is a process,
+  // its pid is known, and the collector was asked for every process on the
+  // machine. If that pid is missing, the collector cannot see the machine it
+  // is standing on.
+  //
+  // By pid rather than by name. Looking for something called "node" was the
+  // first version, and it failed on Linux, where the name comes from comm and
+  // is whatever the kernel recorded — which is not this test's business.
+  const self = (snapshot.processes ?? []).find((entry) => entry.pid === process.pid);
+  check('the collector can see this very process', Boolean(self), () => {
+    const sample = (snapshot.processes ?? []).slice(0, 5).map((e) => `${e.pid} ${e.name}`).join(", ");
+    return `pid ${process.pid} is not among the ${snapshot.processes.length} reported. First few: ${sample}`;
+  });
 
   // Warnings are expected on a CI runner (no elevation, sparse socket tables).
   // They are printed rather than failed on, so a change in what a platform
