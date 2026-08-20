@@ -83,8 +83,8 @@ const PROCESSES = [
     classification: { role: 'agent-session', confidence: 0.95, reason: 'the executable itself is an agent CLI (claude.exe)', matches: [], label: 'claude' },
     name: 'claude.exe',
     commandLine: exact('C:\\Users\\dev\\.local\\bin\\claude.exe --resume'),
-    cwd: unavailable('Windows does not expose the working directory of another process, and the only absolute path in its command line is the executable itself'),
-    project: unavailable('no working directory to look in'),
+    cwd: inferred('C:\\Users\\dev\\projects\\api-gateway', 'matched to C:\\Users\\dev\\AppData\\Local\\Temp\\claude\\C--Users-dev-projects-api-gateway, created 1.4s from this process start (claude session 8f3c1a90); a time correlation inside a 45s window, not a reading of the process'),
+    project: inferred('api-gateway', 'from the working directory the trace pointed at'),
     ageMs: 5 * 3_600_000,
   }),
   proc({
@@ -150,7 +150,9 @@ const PROCESSES = [
 ];
 
 const palette = createPalette(true);
-const SELECTED = 2; // the orphan holding 4311, which is the story this tool tells
+// The orphan holding 4311 is the default story. WHOTOP_SELECTED picks another
+// row so one generator can draw more than one frame.
+const SELECTED = Number(process.env.WHOTOP_SELECTED ?? 2);
 
 // Taken from the program rather than written down here. The pane grew from
 // eight lines to twelve once, and this file kept drawing eight, which is
