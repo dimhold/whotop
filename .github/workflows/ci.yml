@@ -34,7 +34,7 @@ jobs:
         # dropped it, and whotop did not.
         node: ['22', '24']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v7
         with:
@@ -79,7 +79,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Built on a Node that can build it. TypeScript 7 ships as ESM with an
       # extensionless bin, which Node 18 refuses to load — a fact about the
@@ -113,7 +113,7 @@ jobs:
     name: package contents
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: '24'
@@ -131,7 +131,7 @@ jobs:
     name: the picture matches the program
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: '24'
