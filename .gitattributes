@@ -1,0 +1,18 @@
+# LF in the repository, whatever the working tree looks like. This was written
+# on Windows and every blob went in as CRLF, which meant the first contributor
+# on Linux would have rewritten every line of every file they saved. Normalised
+# once, deliberately, rather than a line at a time by accident.
+* text=auto
+
+# Byte for byte as captured from the machines that produced them: real ss,
+# lsof, /proc and PowerShell output. Any line ending conversion would change
+# the input the parsers are tested against, which is the whole point of them.
+test/fixtures/** -text
+
+*.png binary
+*.tgz binary
+
+# Drawn by assets/make-screenshot.mjs from the program's own rendering code.
+# Marked so a redraw does not drown a review in one enormous diff.
+assets/screen.svg linguist-generated=true
+assets/screen.png linguist-generated=true
