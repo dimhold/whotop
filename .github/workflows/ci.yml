@@ -36,7 +36,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node }}
           cache: npm
@@ -84,7 +84,7 @@ jobs:
       # Built on a Node that can build it. TypeScript 7 ships as ESM with an
       # extensionless bin, which Node 18 refuses to load — a fact about the
       # compiler, not about whotop.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: npm
@@ -96,7 +96,7 @@ jobs:
       # install rather than what the repository builds. The whole point of
       # `engines` is the first of those, and it is the one that was never
       # being checked.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '18.17'
       - name: Install the tarball and run it
@@ -114,7 +114,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: npm
@@ -132,7 +132,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: npm
