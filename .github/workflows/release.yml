@@ -36,6 +36,8 @@ jobs:
     needs: verify
     runs-on: ubuntu-latest
     environment: npm
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
     permissions:
       contents: read
       # Required for provenance: npm records which workflow, at which commit,
@@ -49,16 +51,34 @@ jobs:
           cache: npm
           registry-url: https://registry.npmjs.org
 
+      # A repository with no NPM_TOKEN has not opted into publishing from CI,
+      # and a release that goes red every time for a missing secret trains
+      # everyone to ignore the one that goes red for a real reason. The tag
+      # is still verified on all three platforms above; only the last step
+      # stands down, and it starts working the moment the secret is added.
+      - name: Is publishing configured
+        id: token
+        run: |
+          if [ -n "$NODE_AUTH_TOKEN" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::NPM_TOKEN is not set, so nothing was published. Add it to publish this tag from CI."
+          fi
+
       - run: npm ci
+        if: steps.token.outputs.configured == 'true'
       - run: npm run build
+        if: steps.token.outputs.configured == 'true'
       - run: node .github/scripts/check-package.mjs
+        if: steps.token.outputs.configured == 'true'
 
       # A tag that disagrees with package.json publishes a version nobody
       # asked for, and it cannot be taken back.
       - name: The tag and package.json must agree
+        if: steps.token.outputs.configured == 'true'
         run: node .github/scripts/check-version.mjs "${GITHUB_REF_NAME}"
 
       - name: Publish
+        if: steps.token.outputs.configured == 'true'
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

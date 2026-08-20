@@ -33,6 +33,11 @@ source project is expected to have.
   README picture still matches the program.
 - `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, issue and pull
   request templates, Dependabot, and this changelog.
+- **Releases happen from a tag**, verified on all three platforms first and
+  published with provenance. A repository with no npm token configured still
+  gets the verification; only the publish step stands down, because a release
+  that goes red every time for a missing secret trains everyone to ignore the
+  one that goes red for a real reason.
 - **`whotop version` and `whotop help` as words**, not only as flags. Any word
   that is not a subcommand is a filter, so `whotop version` had been quietly
   listing the processes whose command line contains "version" and exiting 0.
