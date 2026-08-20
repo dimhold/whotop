@@ -25,6 +25,12 @@ recorded fixtures, which is what makes Linux parsing testable on Windows; it
 also means a collector can stop working on a platform nobody develops on while
 every test still passes. CI runs the smoke test on all three.
 
+Two of the first things it caught were assumptions in the tests themselves:
+that the splash says "PowerShell" (it says whatever the running platform
+waits on) and that a machine running the suite has a dev server on it. Write
+expectations that ask the program what it should say, rather than repeating
+the answer one platform gives.
+
 ## What the code is trying to be
 
 A few rules run through the whole codebase. They are worth knowing before a

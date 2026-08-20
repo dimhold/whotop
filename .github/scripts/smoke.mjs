@@ -85,7 +85,10 @@ const cases = [
   { args: ['help'], code: 0, expect: /Usage/ },
   { args: ['--help'], code: 0, expect: /Usage/ },
   { args: ['ls', '--explain'], code: 0, expect: /whotop/ },
-  { args: ['ls', '--role', 'dev-server'], code: 0 },
+  // Either it found one or it did not, and a bare runner will not have one.
+  // What is being checked is that a role filter runs at all; asserting 0 here
+  // asserted that the CI machine was running a dev server.
+  { args: ['ls', '--role', 'dev-server'], code: [0, 1] },
   // 65535 is reserved and nothing listens on it, which is exit 1: no match.
   { args: ['port', '65535'], code: 1 },
   // An argument that does not exist is a usage error, not a crash.
@@ -98,7 +101,8 @@ const cases = [
 for (const { args, code, expect: pattern } of cases) {
   const result = run(args);
   const label = `whotop ${args.join(String.fromCharCode(32))}`;
-  check(`${label} exits ${code}`, result.code === code, `exit ${result.code}`);
+  const wanted = Array.isArray(code) ? code : [code];
+  check(`${label} exits ${wanted.join(' or ')}`, wanted.includes(result.code), `exit ${result.code}`);
   if (pattern) {
     check(`${label} prints what it should`, pattern.test(result.out.trim()), `got: ${result.out.slice(0, 200)}`);
   }

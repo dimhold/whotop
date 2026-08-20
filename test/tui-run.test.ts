@@ -16,6 +16,7 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { runTui } from '../src/tui.js';
+import { collectingNote } from '../src/splash.js';
 import { exact, unavailable } from '../src/types.js';
 import type { ProcessView, Snapshot } from '../src/types.js';
 
@@ -214,7 +215,11 @@ describe('runTui', () => {
 
       const early = term.frames()[0] ?? '';
       expect(early).toContain('reading this machine');
-      expect(early).toContain('PowerShell');
+      // The splash names the command the running platform actually waits on:
+      // PowerShell on Windows, /proc on Linux, ps and lsof on macOS. The
+      // expectation comes from the same place the screen does, because a test
+      // that spelled out one platform's answer passed only on that platform.
+      expect(early).toContain(collectingNote(process.platform)[0]);
     });
 
     it('gives way to the list the moment there is one', async () => {
