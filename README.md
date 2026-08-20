@@ -1,7 +1,7 @@
 # whotop
 
 <p align="center">
-  <img src="assets/screen.svg" alt="The whotop interactive screen on Windows: a Claude agent session, two vite dev servers told apart by project, the cursor resting on an orphan holding port 4311, an MCP server, postgres, and two svchost processes named by the service registry as a WireGuard tunnel and CloudflareWARP. A fixed pane below shows the selected process and how many lines it had to hide." width="900">
+  <img src="assets/screen.svg" alt="The whotop interactive screen on Windows: a Claude agent session, two vite dev servers told apart by project, the cursor resting on an orphan holding port 4311, an MCP server, postgres, and two svchost processes named by the service registry as a WireGuard tunnel and CloudflareWARP. A fixed pane below shows everything the selected process discloses: its name, start time, parent, orphan flag, working directory, project, port and the rule that named it." width="900">
 </p>
 
 <p align="center">
@@ -68,9 +68,13 @@ d                full view       a     show every process
 esc              ask to quit     q     quit
 ```
 
-The middle column cycles between what a process is, where it runs, and the command it ran, because one list cannot answer every question at once. The pane under it follows the cursor with no keypress, and is a fixed height: sized to its contents it grew on a long command line and pushed the list off the screen, so when it has to cut it says how many lines are hidden and `d` opens them.
+The middle column cycles between what a process is, where it runs, and the command it ran, because one list cannot answer every question at once. The pane under it follows the cursor with no keypress, and is a fixed twelve lines: sized to its contents it grew on a long command line and pushed the list off the screen, so when it has to cut it says how many lines are hidden and `d` opens them. Fixed against its contents, not against the screen — on a short terminal it gives lines back to the list rather than push the footer off the bottom, and under three lines it steps aside entirely.
 
 The cursor follows a **pid**, never a row number. The list reorders whenever a process exits, and a cursor anchored to a row would quietly settle on a different process than the one you were reading. Killing that one is the mistake this tool exists to prevent.
+
+The screen takes a moment to open, because the first thing it does is ask the machine one question and wait for the whole answer. On Windows that is a single PowerShell round trip for the process table, the socket table and the service names together, and it costs a little over two seconds on a 300 process machine. Splitting it into three faster queries would be worse, not better: a port that moved between two of them would be reported against the wrong process, which is the one mistake this tool must not make.
+
+So the wait is spent rather than hidden. A splash holds the screen, names the command it is waiting on, counts the seconds, and shows the keys so the wait teaches you something. Past six seconds it says the wait is unusual, and past fifteen it says how to get out — and means it, because raw mode turns ctrl-c into a byte that the splash reads itself. Anything else you type while it loads is kept and applied once the list arrives, so a `/` typed early still opens the search. Later refreshes are quieter: a `↻` next to the timestamp, drawn before the wait rather than after it.
 
 Answer the port question directly:
 

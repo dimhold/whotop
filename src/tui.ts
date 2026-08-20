@@ -25,7 +25,8 @@ import type { SortKey } from './filter.js';
 import { formatAge, formatPorts, renderDetail } from './render.js';
 import { killProcesses, signalNote } from './kill.js';
 import type { KillSignal } from './kill.js';
-import { createPalette, padEndVisible, visibleLength } from './color.js';
+import { createPalette, padEndVisible, supportsUnicode, visibleLength } from './color.js';
+import { renderSplash, SPINNER_INTERVAL_MS } from './splash.js';
 import type { Palette } from './color.js';
 
 export interface TuiState {
@@ -79,10 +80,35 @@ export const initialState = (showAll: boolean, sort: SortKey): TuiState => ({
   expanded: false,
 });
 
-/** Height of the pane, counting its rule. Fixed on purpose: a pane that grew
- *  with the selected process pushed the list off the screen, and a layout that
- *  moves under the cursor is worse than one that shows less. */
-export const PANE_HEIGHT = 8;
+/**
+ * Height of the pane, counting its rule. Fixed on purpose: a pane that grew
+ * with the selected process pushed the list off the screen, and a layout that
+ * moves under the cursor is worse than one that shows less.
+ *
+ * Twelve is the rule, ten lines of detail and the overflow marker. A typical
+ * process has more to say than that — role, name, start, parent, orphan, cwd,
+ * project, ports, the rule that named it, and the command line, which wraps —
+ * so the number is chosen for how much of that a reader gets without pressing
+ * d, not for how much the widest process needs.
+ */
+export const PANE_HEIGHT = 12;
+
+/** Rows of list kept back from the pane, whatever the terminal costs. */
+export const MIN_LIST_ROWS = 3;
+
+/**
+ * The pane the terminal can actually afford.
+ *
+ * Fixed height means fixed against its contents, not fixed against the
+ * screen: a twelve line pane in a fifteen line terminal leaves no list to put
+ * a cursor on, and the frame is cut to the terminal height at the end, so the
+ * pane and the footer would be the parts that vanish. Under a pane of three
+ * it is not worth a third of a small screen, and the list takes it all.
+ */
+export function paneHeightFor(termRows: number): number {
+  const room = termRows - 2 - MIN_LIST_ROWS;
+  return room < 3 ? 0 : Math.min(PANE_HEIGHT, room);
+}
 
 /**
  * Rows to draw, after the show-all toggle, the search box and the sort.
@@ -325,6 +351,10 @@ export interface TuiDeps {
   readonly signal?: KillSignal;
   /** Stamped small in the footer corner, so a screenshot says which build it is. */
   readonly version?: string;
+  /** Milliseconds between splash frames. */
+  readonly spinnerMs?: number;
+  /** Injected so a test can drive the splash without waiting in real time. */
+  readonly clock?: () => number;
 }
 
 const ALT_SCREEN_ON = '\x1b[?1049h';
@@ -341,15 +371,20 @@ export async function runTui(deps: TuiDeps): Promise<void> {
   const input = deps.input ?? process.stdin;
   const signal: KillSignal = deps.signal ?? 'SIGTERM';
   const palette = createPalette(Boolean(out.isTTY));
+  const clock = deps.clock ?? Date.now;
 
   if (!input.isTTY) {
     throw new Error('the interactive screen needs a terminal; run whotop without a pipe, or use the plain listing');
   }
 
+  const unicode = supportsUnicode();
+
   let state = initialState(false, 'role');
   let snapshot: Snapshot | null = null;
   let quit = false;
   let restored = false;
+  /** True while a collect is in flight, which is a second or two of every four. */
+  let refreshing = false;
 
   const restore = (): void => {
     if (restored) return;
@@ -371,7 +406,6 @@ export async function runTui(deps: TuiDeps): Promise<void> {
   });
   process.once('uncaughtException', (error) => {
     restore();
-    // eslint-disable-next-line no-console
     console.error(error);
     process.exit(1);
   });
@@ -388,8 +422,12 @@ export async function runTui(deps: TuiDeps): Promise<void> {
     const index = indexOfPid(rows, state.selected);
     const lines: string[] = [];
     const captured = snapshot.capturedAt.toLocaleTimeString();
+    // The marker is what keeps a refresh from reading as a freeze. A refresh
+    // costs a couple of seconds, and pressing r and seeing nothing change for
+    // that long is indistinguishable from a key that did nothing at all.
+    const pending = refreshing ? palette('gray', unicode ? '  ↻' : '  ...') : '';
     lines.push(
-      palette('bold', ` whotop  ${snapshot.platform}  ${rows.length} of ${snapshot.processes.length} processes  ${captured}`),
+      palette('bold', ` whotop  ${snapshot.platform}  ${rows.length} of ${snapshot.processes.length} processes  ${captured}`) + pending,
     );
 
     if (state.expanded && rows[index]) {
@@ -399,8 +437,8 @@ export async function runTui(deps: TuiDeps): Promise<void> {
       const full = renderDetail(rows[index], { width, palette, wide: true }).slice(0, body);
       lines.push(...full, ...Array.from({ length: body - full.length }, () => ''));
     } else {
-      const paneLines = state.detail ? detailPane(width, palette) : [];
-      const listHeight = Math.max(3, termRows - 2 - paneLines.length);
+      const paneLines = state.detail ? detailPane(width, palette, paneHeightFor(termRows)) : [];
+      const listHeight = Math.max(MIN_LIST_ROWS, termRows - 2 - paneLines.length);
       state = { ...state, offset: windowOffset(index, listHeight, state.offset, rows.length) };
 
       const slice = rows.slice(state.offset, state.offset + listHeight);
@@ -429,7 +467,7 @@ export async function runTui(deps: TuiDeps): Promise<void> {
   /**
    * The pane under the list.
    *
-   * Always exactly PANE_HEIGHT lines, whatever the selected process has to
+   * Always exactly the height it is given, whatever the selected process has to
    * say. A pane sized to its contents grew when the cursor landed on a process
    * with a long command line, pushed the list off the screen and made the
    * layout jump about under the reader. Fixed height with an honest overflow
@@ -438,9 +476,10 @@ export async function runTui(deps: TuiDeps): Promise<void> {
    * Pure formatting over data already collected, so moving the cursor costs a
    * redraw and never a snapshot.
    */
-  const detailPane = (width: number, pal: Palette): string[] => {
+  const detailPane = (width: number, pal: Palette, height: number): string[] => {
+    if (height <= 0) return [];
     const rule = pal('gray', ' ' + '─'.repeat(Math.max(0, width - 2)));
-    const body = Math.max(1, PANE_HEIGHT - 1);
+    const body = Math.max(1, height - 1);
     const blank = (): string[] => Array.from({ length: body }, () => '');
     if (!snapshot) return [rule, ...blank()];
 
@@ -460,7 +499,15 @@ export async function runTui(deps: TuiDeps): Promise<void> {
 
   const refresh = async (): Promise<void> => {
     const previousIndex = snapshot ? indexOfPid(visibleRows(snapshot, state), state.selected) : 0;
-    snapshot = await deps.collect();
+    refreshing = true;
+    // Drawn before the wait rather than after it, so that pressing r shows
+    // the marker at once. Skipped on the first collect, which has the splash.
+    if (snapshot) draw();
+    try {
+      snapshot = await deps.collect();
+    } finally {
+      refreshing = false;
+    }
     const rows = visibleRows(snapshot, state);
     state = { ...state, selected: anchorSelection(rows, state.selected, previousIndex) };
     draw();
@@ -598,7 +645,84 @@ export async function runTui(deps: TuiDeps): Promise<void> {
   input.setEncoding('utf8');
   out.write(ALT_SCREEN_ON + CURSOR_HIDE);
 
-  await refresh();
+  /**
+   * The first collect is the long one, and until it returns there is nothing
+   * to draw a list from. An empty alternate screen for two seconds reads as a
+   * hang, so the splash holds the screen, names the command it is waiting on
+   * and counts the seconds. It stops the moment a snapshot exists.
+   */
+  const startedAt = clock();
+  let frame = 0;
+  const drawSplash = (): void => {
+    if (snapshot) return;
+    const width = Math.max(40, (out.columns ?? 100) - 1);
+    const height = out.rows ?? 24;
+    const lines = renderSplash({
+      elapsedMs: clock() - startedAt,
+      frame,
+      width,
+      height,
+      platform: process.platform,
+      palette,
+      unicode,
+      version: deps.version ?? null,
+    });
+    frame += 1;
+    out.write(HOME + lines.map((line) => clampVisible(line, width) + EOL).join('\n') + EOS);
+  };
+
+  /**
+   * Raw mode turns ctrl-c into a byte rather than a signal, and until the key
+   * loop below starts there is nothing reading bytes. A splash that says ctrl-c
+   * gets you out has to mean it, so it listens for that one key itself.
+   *
+   * Everything else typed during the wait is kept rather than dropped, and
+   * handed to the key loop once there is a list to apply it to. Somebody who
+   * types / while the screen loads meant to search.
+   */
+  const typedDuringLoad: string[] = [];
+  const onSplashKey = (chunk: unknown): void => {
+    const text = String(chunk);
+    if (text.includes('\x03')) {
+      restore();
+      process.exit(130);
+    }
+    // Enough for a search word, not enough for a leaned-on key to grow
+    // without bound while a slow machine thinks.
+    if (typedDuringLoad.length < 64) typedDuringLoad.push(text);
+  };
+  input.on('data', onSplashKey);
+
+  drawSplash();
+  const splash = setInterval(drawSplash, deps.spinnerMs ?? SPINNER_INTERVAL_MS);
+  splash.unref?.();
+  try {
+    await refresh();
+  } catch (error) {
+    // The alternate screen is thrown away on the way out, and with it any
+    // message written while it was up. Hand the terminal back first, so the
+    // reason the collect failed is still on the screen afterwards.
+    restore();
+    throw error;
+  } finally {
+    clearInterval(splash);
+    input.off('data', onSplashKey);
+  }
+
+  for (const chunk of typedDuringLoad) {
+    for (const key of splitKeys(chunk)) {
+      await onKey(key);
+      if (quit) break;
+    }
+    if (quit) break;
+  }
+
+  // A q typed during the load has already been answered above, and the key
+  // loop below would sit waiting for a keypress that is never coming.
+  if (quit) {
+    restore();
+    return;
+  }
 
   // A refresh on Windows spawns PowerShell and takes a second or more, so it
   // runs on a timer rather than per keystroke, and keys stay answerable while

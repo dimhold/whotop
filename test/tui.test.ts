@@ -4,7 +4,9 @@ import {
   clampVisible,
   columnText,
   nextColumnMode,
+  MIN_LIST_ROWS,
   PANE_HEIGHT,
+  paneHeightFor,
   renderRow,
   indexOfPid,
   initialState,
@@ -214,6 +216,37 @@ describe('PANE_HEIGHT', () => {
   it('is a constant, because a pane that resizes with its contents moves the list under the cursor', () => {
     expect(PANE_HEIGHT).toBeGreaterThan(2);
     expect(Number.isInteger(PANE_HEIGHT)).toBe(true);
+  });
+});
+
+describe('paneHeightFor', () => {
+  it('gives the pane its full height when the terminal can afford it', () => {
+    expect(paneHeightFor(24)).toBe(PANE_HEIGHT);
+    expect(paneHeightFor(60)).toBe(PANE_HEIGHT);
+  });
+
+  /**
+   * The frame is cut to the terminal height at the very end, so a pane bigger
+   * than the screen does not overflow, it takes the footer and the bottom of
+   * the list with it. Everything has to be given away before that point.
+   */
+  it('always leaves a header, a footer and a list to put the cursor on', () => {
+    for (let termRows = 5; termRows <= 60; termRows += 1) {
+      const pane = paneHeightFor(termRows);
+      const list = Math.max(MIN_LIST_ROWS, termRows - 2 - pane);
+      expect(1 + list + pane + 1).toBeLessThanOrEqual(Math.max(termRows, 1 + MIN_LIST_ROWS + 1));
+      expect(list).toBeGreaterThanOrEqual(MIN_LIST_ROWS);
+    }
+  });
+
+  it('drops the pane rather than leave a stub of it on a small screen', () => {
+    expect(paneHeightFor(7)).toBe(0);
+    expect(paneHeightFor(8)).toBe(3);
+  });
+
+  /** A pane never grows past the height it asked for, however tall the terminal. */
+  it('never exceeds PANE_HEIGHT', () => {
+    expect(paneHeightFor(500)).toBe(PANE_HEIGHT);
   });
 });
 

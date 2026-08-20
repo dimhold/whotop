@@ -13,16 +13,21 @@
  * indistinguishable node processes, the orphan holding a port, the service that
  * discloses nothing but its name.
  */
-import { renderRow, renderFooter, withVersion, initialState, clampVisible } from '../dist/tui.js';
+import { renderRow, renderFooter, withVersion, initialState, clampVisible, PANE_HEIGHT } from '../dist/tui.js';
 import { renderDetail } from '../dist/render.js';
 import { createPalette } from '../dist/color.js';
 import { exact, inferred, unavailable } from '../dist/types.js';
+import { readFileSync } from 'node:fs';
+
+/**
+ * Read, not typed in. The stamp said v0.1.0 for the whole of 0.2.0, because a
+ * number written down in a generator is a number nobody remembers to change.
+ * It comes from the same package.json the CLI reads, so the picture and
+ * `whotop version` cannot disagree.
+ */
+const VERSION = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 
 const COLS = 104;
-// Tall enough for the header, the processes below, the fixed pane and the
-// footer, and no taller. A real terminal leaves blank rows under a short list;
-// a picture that reproduced them would spend half its height on nothing.
-const ROWS = 18;
 const CELL_W = 8.42;
 const CELL_H = 19;
 const PAD_X = 26;
@@ -147,21 +152,28 @@ const PROCESSES = [
 const palette = createPalette(true);
 const SELECTED = 2; // the orphan holding 4311, which is the story this tool tells
 
+// Taken from the program rather than written down here. The pane grew from
+// eight lines to twelve once, and this file kept drawing eight, which is
+// exactly the drift it was written to prevent.
 const paneFor = (view, width) => {
   const rule = palette('gray', ' ' + '─'.repeat(width - 2));
-  const body = 7;
+  const body = PANE_HEIGHT - 1;
   const full = renderDetail(view, { width, palette, wide: false });
   if (full.length <= body) return [rule, ...full, ...Array.from({ length: body - full.length }, () => '')];
   return [rule, ...full.slice(0, body - 1), palette('cyan', `  … ${full.length - body + 1} more lines, press d for the full view`)];
 };
 
-const listHeight = ROWS - 2 - 8;
+// Tall enough for the header, every process below, the pane and the footer,
+// and no taller. A real terminal leaves blank rows under a short list; a
+// picture that reproduced them would spend half its height on nothing.
+const listHeight = PROCESSES.length;
+const ROWS = 2 + listHeight + PANE_HEIGHT;
 const lines = [
   palette('bold', ` whotop  win32  ${PROCESSES.length} of 443 processes  21:47:02`),
   ...PROCESSES.slice(0, listHeight).map((view, i) => renderRow(view, COLS, i === SELECTED, palette, 'what')),
   ...Array.from({ length: Math.max(0, listHeight - PROCESSES.length) }, () => ''),
   ...paneFor(PROCESSES[SELECTED], COLS),
-  withVersion(renderFooter({ ...initialState(false, 'role'), selected: PROCESSES[SELECTED].pid }, PROCESSES.length, palette), '0.1.0', COLS, palette),
+  withVersion(renderFooter({ ...initialState(false, 'role'), selected: PROCESSES[SELECTED].pid }, PROCESSES.length, palette), VERSION, COLS, palette),
 ].map((line) => clampVisible(line, COLS));
 
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');

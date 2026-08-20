@@ -77,3 +77,31 @@ export function padStartVisible(text: string, width: number): string {
   const pad = width - visibleLength(text);
   return pad > 0 ? ' '.repeat(pad) + text : text;
 }
+
+/**
+ * Whether the terminal can be trusted with glyphs outside the legacy code
+ * pages. Braille and block elements are what the splash spinner and wordmark
+ * are drawn with, and the old Windows console draws both as boxes.
+ *
+ * The check is by terminal rather than by platform because the platform is not
+ * the thing that decides: Windows Terminal, VS Code and the JetBrains console
+ * all render them, and each announces itself in the environment. Anything on
+ * Windows that announces nothing is assumed to be conhost, which does not.
+ */
+export function supportsUnicode(
+  env: NodeJS.ProcessEnv = process.env,
+  platform: string = process.platform,
+): boolean {
+  if (platform !== 'win32') {
+    // The bare Linux virtual console is the one Unix terminal that cannot.
+    return env.TERM !== 'linux' && env.TERM !== 'dumb';
+  }
+  return Boolean(
+    env.WT_SESSION ||
+      env.TERM_PROGRAM ||
+      env.ConEmuTask ||
+      env.WSLENV ||
+      env.TERMINAL_EMULATOR ||
+      env.TERM === 'xterm-256color',
+  );
+}
