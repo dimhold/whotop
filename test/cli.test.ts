@@ -17,6 +17,31 @@ describe('parseCliArgs', () => {
     expect(parseCliArgs([]).command).toBe('top');
   });
 
+  /**
+   * Both spellings, because any unrecognised word is a filter and so
+   * `whotop version` used to list the processes whose command line contains
+   * "version" and exit 0. A wrong answer that looks like a right one is
+   * worse than an error, and it survived a smoke test that only checked the
+   * exit code.
+   */
+  it('answers version as a word and as a flag', () => {
+    expect(parseCliArgs(['version']).command).toBe('version');
+    expect(parseCliArgs(['--version']).command).toBe('version');
+    expect(parseCliArgs(['-V']).command).toBe('version');
+  });
+
+  it('answers help as a word and as a flag', () => {
+    expect(parseCliArgs(['help']).command).toBe('help');
+    expect(parseCliArgs(['--help']).command).toBe('help');
+    expect(parseCliArgs(['-h']).command).toBe('help');
+  });
+
+  /** The word is still searchable, the way `ls` and `top` are. */
+  it('leaves the words themselves searchable through ls', () => {
+    const parsed = parseCliArgs(['ls', 'version']);
+    expect(parsed.command).toBe('ls');
+    expect(parsed.query).toBe('version');
+  });
   it('still gives the plain listing to anything with arguments', () => {
     expect(parseCliArgs(['ls']).command).toBe('ls');
     expect(parseCliArgs(['--all']).command).toBe('ls');

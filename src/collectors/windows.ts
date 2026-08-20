@@ -1,5 +1,6 @@
 import { parseWindowsPayload, WINDOWS_CWD_NOTE } from './parse/windows.js';
 import { isMissingBinary, run } from './exec.js';
+import type { RunOptions, RunResult } from './exec.js';
 import type { CollectResult, Collector, CollectorCapabilities } from '../types.js';
 
 /**
@@ -98,17 +99,36 @@ const CAPABILITIES: CollectorCapabilities = {
   ],
 };
 
+/** How a shell is started. Injected so the fallbacks can be exercised off Windows. */
+export type Runner = (
+  command: string,
+  args: readonly string[],
+  options?: RunOptions,
+) => Promise<RunResult>;
+
 export class WindowsCollector implements Collector {
   readonly platform = 'win32' as const;
   readonly capabilities = CAPABILITIES;
+
+  /**
+   * The shell is a constructor argument rather than a direct import so that
+   * the part worth testing — which shell is tried, in what order, and what is
+   * said when none of them start — can be tested anywhere. The PowerShell
+   * script itself is a constant, and what it returns is covered by the
+   * parser's fixtures.
+   */
+  constructor(private readonly exec: Runner = run) {}
 
   async collect(): Promise<CollectResult> {
     const encoded = encodeCommand(SCRIPT);
     const args = ['-NoProfile', '-NonInteractive', '-EncodedCommand', encoded];
 
-    let result = await run('powershell.exe', args, { timeoutMs: 30_000 });
+    // Windows PowerShell first: it is present on every Windows since 7.
+    // pwsh is the cross-platform one, and is only there if somebody
+    // installed it, so it is the fallback rather than the preference.
+    let result = await this.exec('powershell.exe', args, { timeoutMs: 30_000 });
     if (isMissingBinary(result)) {
-      result = await run('pwsh.exe', args, { timeoutMs: 30_000 });
+      result = await this.exec('pwsh.exe', args, { timeoutMs: 30_000 });
     }
     if (isMissingBinary(result)) {
       throw new Error(

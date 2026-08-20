@@ -33,9 +33,23 @@ source project is expected to have.
   README picture still matches the program.
 - `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, issue and pull
   request templates, Dependabot, and this changelog.
+- **`whotop version` and `whotop help` as words**, not only as flags. Any word
+  that is not a subcommand is a filter, so `whotop version` had been quietly
+  listing the processes whose command line contains "version" and exiting 0.
+  A wrong answer that looks like a right one is worse than an error. To search
+  for the word itself, `whotop ls version`.
+- **The exit codes are documented** in the README and in `--help`: 0 answered,
+  1 nothing matched, 2 bad usage, 3 the process table could not be read.
 
 ### Changed
 
+- **Coverage went from 73% to 89%**, and there is now a floor under it that CI
+  enforces. 94 tests were added, 268 to 362. The two largest untested things
+  in the project were the half of the interactive screen that owns a terminal,
+  and `main` itself — the composition every exit code and every subcommand
+  goes through. Both are covered against a fake terminal and an injected
+  reader, with nothing stubbed in between. The public API surface is written
+  down as a test, so an export cannot fall out of it unnoticed.
 - **The detail pane is twelve lines rather than eight.** A typical process
   discloses more than seven lines and the eighth was spent on the marker saying
   so, which left six. It is still fixed against its contents, but no longer
@@ -48,6 +62,12 @@ source project is expected to have.
 
 ### Fixed
 
+- **`whotop kill` can be answered by an embedding caller.** The refusal to
+  kill without a terminal was checking for a terminal rather than for a way to
+  ask, so a caller that supplied its own confirmation was refused anyway.
+- **The screen no longer leaves its handlers on `process`.** The CLI exits
+  immediately and would never notice; a program that used whotop as a library
+  and opened the screen twice would have been left holding two sets.
 - **A failed collect no longer swallows its own error message.** The alternate
   screen was discarded on the way out and took the explanation with it, leaving
   a blank terminal and no reason.
@@ -60,8 +80,8 @@ source project is expected to have.
 
 - **Source maps are no longer published.** All 42 of them named a `src`
   directory the package does not contain and embedded no sources, so 43% of the
-  build was a map of a place the reader cannot go. Packed 103.1 kB to 71.8 kB,
-  unpacked 401.5 kB to 233.4 kB.
+  build was a map of a place the reader cannot go. Packed 103.1 kB to 72.5 kB,
+  unpacked 401.5 kB to 235.5 kB, 87 files to 45.
 - `REPO-NOTES.md`, whose contents now live in `CONTRIBUTING.md` where
   contributors will find them.
 

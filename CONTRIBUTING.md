@@ -9,7 +9,8 @@ uncertain answer say so, belongs here.
 ```bash
 npm install
 npm run typecheck     # tsc --noEmit, strict
-npm test              # vitest, 268 tests
+npm test              # vitest, 362 tests
+npm run coverage      # the same, with a report and a floor
 npm run build         # emit dist/
 ```
 
@@ -47,7 +48,16 @@ comment would be obvious from the line below it, it is not needed.
 
 **The pure part is tested; the terminal-owning part is thin.** In `src/tui.ts`
 and `src/splash.ts` everything above the function that takes a terminal is
-pure and takes no terminal, and that is where the tests live.
+pure and takes no terminal, and that is where most of the tests live. The part
+that does own a terminal is tested too, against a fake one: `test/tui-run.test.ts`
+hands `runTui` a stream pair that behaves the way Node's does, and nothing
+inside `runTui` is stubbed.
+
+**What cannot be tested is injected, and nothing else is.** `main` takes an
+`inspect` and a `runTui`; the Windows collector takes the function that starts
+a shell; `runTui` takes a collect, a clock and a way out. Each seam exists
+because the thing behind it reads a real machine or takes a real terminal, and
+everything between the seams is the real code.
 
 There is no linter. Strict `tsc` with `noUncheckedIndexedAccess` plus the test
 suite covers what a linter would catch here, and adding one would put a large
@@ -112,9 +122,13 @@ picture checks; all of them have to pass.
 
 Known gaps, all of them real:
 
-- **`main()` in `cli.ts` is not covered end to end.** The pieces it composes are
-  each tested against fixtures, but a full test would need a collector seam
-  threaded through the entry point.
+- **The Linux and macOS collectors are barely covered.** They read `/proc` and
+  spawn `ss` and `lsof` directly, so testing them means a filesystem seam that
+  does not exist yet. Their parsers, where the difficult part lives, are at
+  99%; the Windows collector has the seam already and is at 100%, which is
+  roughly the shape the other two want.
+- **`askYesNo` is untested**, because it builds a readline interface over the
+  real stdin. Everything that decides whether it is called is covered.
 - **Linux start times assume `USER_HZ` is 100.** True on mainstream kernels,
   stated in the platform notes, not read from `sysconf`.
 - **The role table is a heuristic, not a registry.** Every tool it has not been

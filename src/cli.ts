@@ -66,8 +66,8 @@ Killing
   -y, --yes             skip the confirmation prompt
 
 Other
-  -h, --help            this text
-  -V, --version         print the version
+  whotop help           this text, also -h or --help
+  whotop version        print the version, also -V or --version
 
 Roles
   ${ALL_ROLES.join(', ')}
@@ -202,6 +202,20 @@ export function parseCliArgs(rawArgv: readonly string[]): Parsed {
     }
   } else if (head === 'ls' || head === 'list') {
     query = rest.join(' ') || null;
+  } else if (head === 'version') {
+    /**
+     * Spelled as a word as well as a flag, because that is how every other
+     * tool of this shape answers and because the alternative was worse than
+     * an error: any unrecognised word is a filter, so `whotop version`
+     * quietly listed the processes whose command line contains "version"
+     * and exited 0. It looked like it had worked.
+     *
+     * The cost is the same one `ls`, `top`, `port` and `kill` already have:
+     * to search for the word itself, say `whotop ls version`.
+     */
+    command = 'version';
+  } else if (head === 'help') {
+    command = 'help';
   } else if (head !== undefined) {
     query = positionals.join(' ');
   }
@@ -294,7 +308,31 @@ function toJson(snapshot: Snapshot, shown: readonly ProcessView[]): string {
   );
 }
 
-export async function main(argv: readonly string[] = process.argv.slice(2)): Promise<number> {
+/**
+ * The two things `main` does that a test cannot: read the machine, and take
+ * over a terminal. Injected rather than reached for, so that everything
+ * between them — the argument parsing, the filtering, the exit codes, the
+ * refusal to kill without a confirmation — can be exercised end to end.
+ *
+ * The seam is the whole of `inspect` rather than the collector under it,
+ * because a test that had to supply a collector would also be supplying a
+ * trace scan and a project resolver, and would be testing those instead.
+ */
+export interface CliDeps {
+  readonly inspect?: typeof inspect;
+  readonly runTui?: typeof runTui;
+  /** Answers the kill confirmation. Defaults to asking on the terminal. */
+  readonly confirm?: (question: string) => Promise<boolean>;
+  /** Sends the signal. Defaults to process.kill, through killProcesses. */
+  readonly send?: (pid: number, signal: KillSignal) => void;
+}
+
+export async function main(
+  argv: readonly string[] = process.argv.slice(2),
+  deps: CliDeps = {},
+): Promise<number> {
+  const read = deps.inspect ?? inspect;
+  const screen = deps.runTui ?? runTui;
   let options: Parsed;
   try {
     options = parseCliArgs(argv);
@@ -326,7 +364,7 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
 
   if (options.command === 'top') {
     try {
-      await runTui({ collect: () => inspect(), signal: options.signal, version: version() });
+      await screen({ collect: () => read(), signal: options.signal, version: version() });
       return 0;
     } catch (error) {
       process.stderr.write(`whotop: ${(error as Error).message}\n`);
@@ -340,7 +378,7 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
 
   let snapshot: Snapshot;
   try {
-    snapshot = await inspect();
+    snapshot = await read();
   } catch (error) {
     process.stderr.write(`whotop could not read the process table: ${(error as Error).message}\n`);
     return 3;
@@ -368,7 +406,7 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
   const out: string[] = [];
 
   if (options.command === 'kill') {
-    return runKill(snapshot, selected, options, palette, width);
+    return runKill(snapshot, selected, options, palette, width, deps);
   }
 
   if (options.command === 'port') {
@@ -422,6 +460,7 @@ async function runKill(
   options: Parsed,
   palette: ReturnType<typeof createPalette>,
   width: number,
+  deps: CliDeps = {},
 ): Promise<number> {
   const targets =
     options.ports.length > 0
@@ -447,21 +486,24 @@ async function runKill(
   if (note) process.stderr.write(`${palette('yellow', '!')} ${palette('gray', note)}\n`);
 
   if (!options.yes) {
-    if (!process.stdin.isTTY) {
+    // The guard is about there being nowhere to ask, not about the terminal
+    // as such. A caller that supplied its own way of asking has supplied one.
+    const ask = deps.confirm;
+    if (!ask && !process.stdin.isTTY) {
       process.stderr.write(
         `${palette('red', 'refusing to kill without a confirmation.')} There is no terminal to ask on; pass --yes if you meant it.\n`,
       );
       return 1;
     }
     const question = unique.map((view) => describeTarget(view, options.ports[0])).join('\n  ');
-    const ok = await askYesNo(`kill ${unique.length === 1 ? '' : `${unique.length} processes:\n  `}${question}?`);
+    const ok = await (ask ?? askYesNo)(`kill ${unique.length === 1 ? '' : `${unique.length} processes:\n  `}${question}?`);
     if (!ok) {
       process.stderr.write('nothing was killed.\n');
       return 0;
     }
   }
 
-  const outcomes = await killProcesses(unique, options.signal);
+  const outcomes = await killProcesses(unique, options.signal, deps.send ? { send: deps.send } : {});
   let failures = 0;
   for (const outcome of outcomes) {
     if (outcome.ok) {

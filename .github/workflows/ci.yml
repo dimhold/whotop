@@ -47,6 +47,12 @@ jobs:
       - name: Test
         run: npm test
 
+      # One job of the nine enforces the coverage floor. Running it everywhere
+      # would be nine identical numbers and nine slower jobs.
+      - name: Coverage floor
+        if: matrix.os == 'ubuntu-latest' && matrix.node == '24'
+        run: npm run coverage
+
       - name: Build
         run: npm run build
 

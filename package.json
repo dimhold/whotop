@@ -1,6 +1,6 @@
 {
   "name": "whotop",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Identify look-alike node/python/agent processes: full command line, working directory, and the ports they hold.",
   "keywords": [
     "process",
@@ -53,10 +53,12 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "npm run typecheck && npm test && npm run build"
+    "prepublishOnly": "npm run typecheck && npm test && npm run build",
+    "coverage": "vitest run --coverage"
   },
   "devDependencies": {
     "@types/node": "^22.9.0",
+    "@vitest/coverage-v8": "^2.1.9",
     "typescript": "^5.6.3",
     "vitest": "^2.1.5"
   }

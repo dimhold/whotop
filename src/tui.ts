@@ -355,6 +355,8 @@ export interface TuiDeps {
   readonly spinnerMs?: number;
   /** Injected so a test can drive the splash without waiting in real time. */
   readonly clock?: () => number;
+  /** Injected so the ways out can be exercised without taking the test runner with them. */
+  readonly exit?: (code: number) => void;
 }
 
 const ALT_SCREEN_ON = '\x1b[?1049h';
@@ -372,6 +374,7 @@ export async function runTui(deps: TuiDeps): Promise<void> {
   const signal: KillSignal = deps.signal ?? 'SIGTERM';
   const palette = createPalette(Boolean(out.isTTY));
   const clock = deps.clock ?? Date.now;
+  const exit = deps.exit ?? ((code: number) => process.exit(code));
 
   if (!input.isTTY) {
     throw new Error('the interactive screen needs a terminal; run whotop without a pipe, or use the plain listing');
@@ -386,9 +389,25 @@ export async function runTui(deps: TuiDeps): Promise<void> {
   /** True while a collect is in flight, which is a second or two of every four. */
   let refreshing = false;
 
+  /**
+   * Registered on `process`, and so removed again on the way out. The CLI
+   * exits immediately afterwards and would never notice, but whotop is also
+   * a library, and a caller that opens the screen twice should not be left
+   * holding two sets of handlers for a terminal that has been given back.
+   */
+  const attached: Array<[string, (...args: never[]) => void]> = [];
+  const attach = (event: string, handler: (...args: never[]) => void): void => {
+    process.once(event as 'exit', handler as () => void);
+    attached.push([event, handler]);
+  };
+
   const restore = (): void => {
     if (restored) return;
     restored = true;
+    // The never[] signature is what makes attach() accept both a bare
+    // handler and one taking an error; removal wants the loose one back.
+    for (const [event, handler] of attached) process.off(event, handler as (...args: unknown[]) => void);
+    attached.length = 0;
     try {
       input.setRawMode(false);
     } catch {
@@ -399,16 +418,16 @@ export async function runTui(deps: TuiDeps): Promise<void> {
   };
 
   // Three ways out, all of them must hand the shell back intact.
-  process.once('exit', restore);
-  process.once('SIGINT', () => {
+  attach('exit', restore);
+  attach('SIGINT', () => {
     restore();
-    process.exit(130);
+    exit(130);
   });
-  process.once('uncaughtException', (error) => {
+  attach('uncaughtException', ((error: Error) => {
     restore();
     console.error(error);
-    process.exit(1);
-  });
+    exit(1);
+  }) as (...args: never[]) => void);
 
   const draw = (): void => {
     if (!snapshot) return;
@@ -685,7 +704,9 @@ export async function runTui(deps: TuiDeps): Promise<void> {
     const text = String(chunk);
     if (text.includes('\x03')) {
       restore();
-      process.exit(130);
+      exit(130);
+      quit = true;
+      return;
     }
     // Enough for a search word, not enough for a leaned-on key to grow
     // without bound while a slow machine thinks.

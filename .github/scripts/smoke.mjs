@@ -72,21 +72,36 @@ if (snapshot) {
   for (const warning of snapshot.warnings ?? []) console.log(`  note  ${warning}`);
 }
 
-// Every other entry point, with the exit code each one documents.
+// Every other entry point, with the exit code each one documents and
+// something about the output that only that command produces.
+//
+// The output check is the point. This file once asserted exit codes alone,
+// and `whotop version` passed it while printing a process listing: any
+// unrecognised word is a filter, so it had been quietly searching for
+// processes matching "version" and exiting 0. It looked like it worked.
 const cases = [
-  { args: ['version'], code: 0 },
-  { args: ['--help'], code: 0 },
-  { args: ['ls', '--explain'], code: 0 },
+  { args: ['version'], code: 0, expect: /^\d+\.\d+\.\d+/ },
+  { args: ['--version'], code: 0, expect: /^\d+\.\d+\.\d+/ },
+  { args: ['help'], code: 0, expect: /Usage/ },
+  { args: ['--help'], code: 0, expect: /Usage/ },
+  { args: ['ls', '--explain'], code: 0, expect: /whotop/ },
   { args: ['ls', '--role', 'dev-server'], code: 0 },
   // 65535 is reserved and nothing listens on it, which is exit 1: no match.
   { args: ['port', '65535'], code: 1 },
   // An argument that does not exist is a usage error, not a crash.
   { args: ['--no-such-flag'], code: 2 },
+  // A word that is not a subcommand is still a filter, which is what makes
+  // `whotop vite` work, and is why version and help had to be spelled out.
+  { args: ['ls', 'a-string-no-process-can-match-zzz'], code: 0 },
 ];
 
-for (const { args, code } of cases) {
+for (const { args, code, expect: pattern } of cases) {
   const result = run(args);
-  check(`whotop ${args.join(' ')} exits ${code}`, result.code === code, `exit ${result.code}\n${result.err}`);
+  const label = `whotop ${args.join(String.fromCharCode(32))}`;
+  check(`${label} exits ${code}`, result.code === code, `exit ${result.code}`);
+  if (pattern) {
+    check(`${label} prints what it should`, pattern.test(result.out.trim()), `got: ${result.out.slice(0, 200)}`);
+  }
 }
 
 // A pipe gets the listing rather than the interactive screen, which is what
