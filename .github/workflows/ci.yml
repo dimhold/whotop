@@ -28,9 +28,11 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        # 18.17 is the floor the package declares, 24 is where it will be run,
-        # 22 is the LTS in between. 20 sits between two covered versions.
-        node: ['18.17', '22', '24']
+        # 24 is where it will be run, 22 is the LTS behind it. 20 sits
+        # between two covered versions. 18.17, the floor the package
+        # declares, is checked by the job below instead: the test runner
+        # dropped it, and whotop did not.
+        node: ['22', '24']
     steps:
       - uses: actions/checkout@v4
 
@@ -62,6 +64,50 @@ jobs:
       # the real thing against the runner itself.
       - name: Read this machine for real
         run: node .github/scripts/smoke.mjs
+
+  # `engines` promises Node 18.17, and that promise is about running whotop,
+  # not about running its test suite. Vitest 4 requires Node 20, so the floor
+  # can no longer be checked by running the tests there — but it can still be
+  # checked the way it actually matters: build the package on 18.17 and make
+  # it read the machine. Dropping the job instead would have left the number
+  # in package.json as something nobody had verified in a year.
+  floor:
+    name: ${{ matrix.os }} / the package on node 18.17
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      # Built on a Node that can build it. TypeScript 7 ships as ESM with an
+      # extensionless bin, which Node 18 refuses to load — a fact about the
+      # compiler, not about whotop.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm pack
+
+      # Then the version the package promises, running what somebody would
+      # install rather than what the repository builds. The whole point of
+      # `engines` is the first of those, and it is the one that was never
+      # being checked.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18.17'
+      - name: Install the tarball and run it
+        shell: bash
+        run: |
+          mkdir floor-check && cd floor-check
+          npm init -y > /dev/null
+          npm install ../whotop-*.tgz --no-audit --no-fund
+          cd ..
+          node --version
+          node .github/scripts/smoke.mjs floor-check/node_modules/whotop/dist/cli.js
 
   package:
     name: package contents

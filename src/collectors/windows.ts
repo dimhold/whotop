@@ -1,5 +1,5 @@
 import { parseWindowsPayload, WINDOWS_CWD_NOTE } from './parse/windows.js';
-import { isMissingBinary, run } from './exec.js';
+import { failureReason, isMissingBinary, run } from './exec.js';
 import type { RunOptions, RunResult } from './exec.js';
 import type { CollectResult, Collector, CollectorCapabilities } from '../types.js';
 
@@ -137,8 +137,7 @@ export class WindowsCollector implements Collector {
     }
     const text = result.stdout.trim();
     if (text === '') {
-      const detail = result.stderr.trim() || result.error?.message || 'no output';
-      throw new Error(`PowerShell returned nothing: ${detail}`);
+      throw new Error(`PowerShell returned nothing: ${failureReason(result)}`);
     }
     return parseWindowsPayload(text);
   }

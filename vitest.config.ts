@@ -18,10 +18,15 @@ export default defineConfig({
        * testing them means a filesystem seam that does not exist yet. Their
        * parsers, which is where the difficult part lives, are at 99%.
        */
+      // The branch number moved from 84% to 76% between vitest 2 and 4 with
+      // no test and no line of source changed: v8 counts branches
+      // differently now. The floor follows the measurement rather than
+      // pretending the code got worse, which is why it is written down here
+      // with the reason attached instead of being quietly edged down.
       thresholds: {
         lines: 85,
         functions: 85,
-        branches: 80,
+        branches: 75,
       },
     },
   },

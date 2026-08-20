@@ -1,4 +1,4 @@
-import { isMissingBinary, run } from './exec.js';
+import { failureReason, isMissingBinary, run } from './exec.js';
 import { parseLsofCwd, parseLsofPorts, parsePs } from './parse/darwin.js';
 import { exact, unavailable } from '../types.js';
 import type { CollectResult, Collector, CollectorCapabilities, PortBinding, RawProcess } from '../types.js';
@@ -28,7 +28,7 @@ export class DarwinCollector implements Collector {
 
     const ps = await run('ps', ['-axwwo', 'pid=,ppid=,user=,lstart=,command='], { timeoutMs: 20_000 });
     if (!ps.ok && ps.stdout.trim() === '') {
-      throw new Error(`\`ps\` failed: ${ps.stderr.trim() || ps.error?.message || 'no output'}`);
+      throw new Error(`\`ps\` failed: ${failureReason(ps)}`);
     }
     const rows = parsePs(ps.stdout);
 

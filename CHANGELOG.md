@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The dev toolchain moved to TypeScript 7 and vitest 4. The test suite now
+  needs Node 20 or newer; the package still declares and still verifies
+  Node 18.17, by building on a modern Node and then installing and running
+  the tarball there, which is what `engines` actually promises.
+
+### Fixed
+
+- A collector that could not read the machine printed the whole command it
+  had tried, and on Windows that is four kilobytes of base64 PowerShell. It
+  says what went wrong in a sentence now.
+
 ## [0.3.0] - 2026-08-20
 
 The interactive screen stops looking like it has hung, the detail pane shows

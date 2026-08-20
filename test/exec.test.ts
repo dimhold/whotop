@@ -9,7 +9,7 @@
  * crash, and every collector is written assuming that.
  */
 import { describe, expect, it } from 'vitest';
-import { isMissingBinary, run } from '../src/collectors/exec.js';
+import { failureReason, isMissingBinary, run } from '../src/collectors/exec.js';
 
 /** Node is the one binary that is certainly installed wherever this runs. */
 const node = process.execPath;
@@ -123,5 +123,44 @@ describe('isMissingBinary', () => {
 
     expect(isMissingBinary({ ok: false, code: null, stdout: '', stderr: '', error: enoent })).toBe(true);
     expect(isMissingBinary({ ok: false, code: null, stdout: '', stderr: '', error: denied })).toBe(false);
+  });
+});
+
+describe('failureReason', () => {
+  /**
+   * The reason this exists. Node builds `error.message` as "Command failed: "
+   * followed by the whole command line, and the Windows collector passes its
+   * script as a base64 -EncodedCommand. A CI log carried four kilobytes of
+   * encoded PowerShell where the reason should have been.
+   */
+  it('never repeats the command back at the reader', async () => {
+    const result = await run(node, ['-e', 'process.exit(9)']);
+    const reason = failureReason(result);
+
+    expect(reason).not.toContain('Command failed');
+    expect(reason).not.toContain('-e');
+    expect(reason.length).toBeLessThan(120);
+    expect(reason).toContain('9');
+  });
+
+  /** Whatever the program said about itself is better than anything inferred. */
+  it('prefers what the program printed', async () => {
+    const result = await run(node, ['-e', 'process.stderr.write("Access is denied"); process.exit(1)']);
+    expect(failureReason(result)).toBe('Access is denied');
+  });
+
+  it('names a missing program as missing', async () => {
+    const result = await run('whotop-no-such-binary-anywhere', []);
+    expect(failureReason(result)).toContain('not installed');
+  });
+
+  it('names a timeout as a timeout', async () => {
+    const result = await run(node, ['-e', 'setTimeout(() => {}, 30000)'], { timeoutMs: 120 });
+    expect(failureReason(result)).toContain('timeout');
+  });
+
+  /** A run that succeeded but said nothing still needs a sentence. */
+  it('has something to say about silence', () => {
+    expect(failureReason({ ok: true, code: 0, stdout: '', stderr: '', error: null })).toMatch(/nothing/);
   });
 });

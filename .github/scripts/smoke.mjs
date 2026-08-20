@@ -17,7 +17,10 @@ import { platform } from 'node:process';
 
 const NL = String.fromCharCode(10);
 
-const CLI = 'dist/cli.js';
+// The build in the working tree by default, or whatever is passed in. The
+// floor job passes the copy it installed out of a tarball, so these run
+// against what a user would actually get.
+const CLI = process.argv[2] ?? 'dist/cli.js';
 let failures = 0;
 
 const run = (args) => {
@@ -39,7 +42,7 @@ const check = (name, ok, detail) => {
   if (said) console.log(String(said).split(NL).map((line) => `        ${line}`).join(NL));
 };
 
-console.log(`whotop smoke test on ${platform}`);
+console.log(`whotop smoke test on ${platform}, node ${process.versions.node}, against ${CLI}`);
 
 // The listing has to be readable, and it has to have found this very process.
 const listing = run(['ls', '--json', '--all']);

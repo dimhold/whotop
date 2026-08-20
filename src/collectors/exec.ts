@@ -45,6 +45,30 @@ export function run(command: string, args: readonly string[], options: RunOption
   });
 }
 
+/**
+ * Why a run produced nothing usable, in a sentence somebody can act on.
+ *
+ * Not `error.message`. Node builds that as "Command failed: " followed by
+ * the whole command line, and the Windows collector passes its script as a
+ * base64 -EncodedCommand — four kilobytes of it. A CI log once carried the
+ * entire encoded script where the reason should have been, which is how
+ * this came to be written.
+ */
+export function failureReason(result: RunResult): string {
+  const stderr = result.stderr.trim();
+  if (stderr !== "") return stderr;
+
+  const error = result.error as (NodeJS.ErrnoException & { killed?: boolean }) | null;
+  if (error?.killed) return "it was still running when the timeout expired";
+  if (error?.code === "ENOENT") return "the program is not installed here";
+  if (error?.code === "EACCES") return "the program is there but could not be run";
+  if (typeof result.code === "number" && result.code !== 0) {
+    return `it exited with code ${result.code} and printed nothing`;
+  }
+  if (error?.code !== undefined) return `it failed with ${error.code}`;
+  return "it printed nothing and gave no reason";
+}
+
 /** True when the failure was "the binary does not exist here". */
 export function isMissingBinary(result: RunResult): boolean {
   const err = result.error as NodeJS.ErrnoException | null;

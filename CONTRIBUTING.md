@@ -9,7 +9,7 @@ uncertain answer say so, belongs here.
 ```bash
 npm install
 npm run typecheck     # tsc --noEmit, strict
-npm test              # vitest, 362 tests
+npm test              # vitest, 362 tests, needs Node 20 or newer
 npm run coverage      # the same, with a report and a floor
 npm run build         # emit dist/
 ```
@@ -120,9 +120,11 @@ of behaviour: *Clamp every line at the one place they are written*, not
 *fix(tui): clamp lines*. The body carries the reasoning, the same way the
 comments do.
 
-Open a pull request against `main`. CI runs nine build-and-test jobs across
-three operating systems and three Node versions, plus the package-contents and
-picture checks; all of them have to pass.
+Open a pull request against `main`. CI runs six build-and-test jobs across
+three operating systems and two Node versions, three more that build and run
+whotop on 18.17 — the version `engines` promises, which the test runner no
+longer supports — and the package-contents and picture checks. All of them
+have to pass.
 
 ## Where help is wanted
 
@@ -154,8 +156,12 @@ For maintainers.
 5. Bump the version in `package.json`, commit
 6. `git tag -a vX.Y.Z` with the changelog entry as the message, and push the tag
 
-Pushing the tag is the whole release. The `Release` workflow verifies on all
-three operating systems, refuses to publish if the tag and `package.json`
-disagree, and publishes to npm with provenance. Nothing is published from a
-laptop: 0.1.0 and 0.2.0 both were, and neither left a tag behind to say which
-commit they came from.
+Pushing the tag is most of the release. The `Release` workflow verifies on all
+three operating systems and refuses to publish if the tag and `package.json`
+disagree. It then publishes to npm with provenance — but only where an
+`NPM_TOKEN` secret is configured; without one it says so and stands down,
+because a release that goes red every time for a missing secret trains
+everyone to ignore the one that goes red for a real reason.
+
+All three releases so far went to npm from a laptop, and the first two left no
+tag behind to say which commit they came from. That is what this is for.
