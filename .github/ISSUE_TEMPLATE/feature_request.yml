@@ -1,0 +1,24 @@
+name: Feature request
+description: Something whotop should be able to answer and cannot
+labels: [enhancement]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: The question you were trying to answer
+      description: |
+        whotop exists to answer "what is this process, and which port is it
+        holding". Describing the question you had works better than describing
+        the flag you imagined, because the flag may not be the answer.
+      placeholder: |
+        I wanted to know which of these six node processes was started by my
+        editor rather than by me.
+    validations:
+      required: true
+
+  - type: textarea
+    id: today
+    attributes:
+      label: What you do today instead
+    validations:
+      required: false

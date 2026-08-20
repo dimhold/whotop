@@ -1,0 +1,48 @@
+name: A process was named wrongly
+description: A row says the wrong role, project, or working directory
+labels: [classification]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The roles come from a table of rules in `src/classify.ts` matched
+        against the command line, not from a registry of known tools. A tool it
+        has never heard of reads as `unknown`, and a tool that looks like
+        another one reads as that one. Both are fixed the same way: a token and
+        a test.
+
+  - type: input
+    id: expected
+    attributes:
+      label: What it should have said
+      placeholder: "dev-server (astro)"
+    validations:
+      required: true
+
+  - type: input
+    id: actual
+    attributes:
+      label: What it said
+      placeholder: "unknown"
+    validations:
+      required: true
+
+  - type: textarea
+    id: row
+    attributes:
+      label: The row, from `whotop ls --explain`
+      description: |
+        The `why` line is the important part: it names the rule that produced
+        the answer. Redact paths you would rather not publish.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: cmdline
+    attributes:
+      label: The full command line
+      description: Redacted as needed, but keep the executable and the arguments a rule could match on.
+      render: text
+    validations:
+      required: true

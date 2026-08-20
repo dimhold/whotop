@@ -1,0 +1,64 @@
+# Publishing is a tag away, and the tag is the only thing that decides. A
+# release built from somebody's working tree is a release nobody can reproduce,
+# and 0.1.0 and 0.2.0 both went to npm from a laptop with no tag left behind to
+# say which commit they were.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: node .github/scripts/smoke.mjs
+
+  publish:
+    name: publish to npm
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      # Required for provenance: npm records which workflow, at which commit,
+      # built the tarball, and the registry shows it as verified.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - run: npm ci
+      - run: npm run build
+      - run: node .github/scripts/check-package.mjs
+
+      # A tag that disagrees with package.json publishes a version nobody
+      # asked for, and it cannot be taken back.
+      - name: The tag and package.json must agree
+        run: node .github/scripts/check-version.mjs "${GITHUB_REF_NAME}"
+
+      - name: Publish
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

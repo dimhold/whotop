@@ -1,0 +1,73 @@
+name: Bug report
+description: Something whotop did that it should not have
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        whotop reads three different operating systems through three different
+        programs, so where it runs matters as much as what it did. The fields
+        below are the ones that make a report reproducible.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you ran, what you expected, and what you got instead.
+      placeholder: |
+        I ran `whotop ls -l` and the vite process holding 4310 was not listed.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: whotop version
+      description: The output of `whotop version`.
+      placeholder: "0.3.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - Linux
+        - macOS
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: os_detail
+    attributes:
+      label: OS version, and Node version
+      description: "`node -v`, plus the OS build. On Linux, the distribution."
+      placeholder: "Windows 11 23H2, Node 22.11.0"
+    validations:
+      required: true
+
+  - type: textarea
+    id: explain
+    attributes:
+      label: Output of `whotop ls --explain`
+      description: |
+        This names the rule behind every row and lists what the platform
+        refused to disclose, which is usually where the answer is. Paste the
+        relevant rows rather than all of them, and remove anything about a
+        process you would rather not show: this field is public, and a process
+        table has real paths and real project names in it.
+      render: text
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: elevated
+    attributes:
+      label: Anything else that might matter
+      options:
+        - label: I was running in an elevated or root shell
+        - label: The process in question belongs to another user
+        - label: This was inside a container, WSL, or a remote session

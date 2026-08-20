@@ -1,0 +1,22 @@
+# whotop has no runtime dependencies and intends to keep none: npx whotop is
+# meant to be one download with no supply chain to audit. This watches the
+# tools used to build and test it, and the actions the workflows call.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    groups:
+      dev-dependencies:
+        patterns: ['*']
+    commit-message:
+      prefix: 'Update'
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: 'Update'

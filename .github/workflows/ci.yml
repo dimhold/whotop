@@ -1,0 +1,100 @@
+# The collectors are three different programs wearing one interface: PowerShell
+# and WMI on Windows, /proc and ss on Linux, ps and lsof on macOS. Off its own
+# platform each one is exercised only against recorded fixtures, so a change
+# that parses the fixture correctly and the live output wrongly passes every
+# test on the machine it was written on. That is what this matrix is for.
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags-ignore: ['**']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: ${{ matrix.os }} / node ${{ matrix.node }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        # 18.17 is the floor the package declares, 24 is where it will be run,
+        # 22 is the LTS in between. 20 sits between two covered versions.
+        node: ['18.17', '22', '24']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      # The tests above read fixtures, which is what makes Linux parsing
+      # testable on Windows. It also means a collector can stop working on a
+      # platform nobody develops on while every test still passes. This runs
+      # the real thing against the runner itself.
+      - name: Read this machine for real
+        run: node .github/scripts/smoke.mjs
+
+  package:
+    name: package contents
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+      # dist, README and LICENSE, and nothing else. It has shipped 42 source
+      # maps naming a directory it does not contain, so this is checked rather
+      # than assumed.
+      - name: Nothing unexpected ships
+        run: node .github/scripts/check-package.mjs
+
+  picture:
+    name: the picture matches the program
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+      # assets/screen.svg is drawn by the program's own rendering code, so it
+      # can be redrawn and compared. A pane that changed height or a footer
+      # that gained a key leaves the README showing something the program no
+      # longer does, which is exactly what a hand-taken screenshot does wrong.
+      - name: Redraw it and compare
+        run: |
+          node assets/make-screenshot.mjs > /tmp/screen.svg
+          diff -u assets/screen.svg /tmp/screen.svg || {
+            echo "::error::assets/screen.svg is stale. Run: node assets/make-screenshot.mjs > assets/screen.svg"
+            exit 1
+          }

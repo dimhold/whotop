@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Why a process shows as unknown
+    url: https://github.com/dimhold/whotop#it-tells-you-what-it-cannot-see
+    about: A process that discloses nothing is usually the operating system withholding it, not a bug. `whotop ls --explain` names what each platform refused to say.
+  - name: Report a vulnerability privately
+    url: https://github.com/dimhold/whotop/security/advisories/new
+    about: Anything about whotop killing the wrong process, or a parser that could be made to run something, goes here rather than into a public issue.

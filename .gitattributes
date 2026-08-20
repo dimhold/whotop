@@ -13,6 +13,7 @@ test/fixtures/** -text
 *.tgz binary
 
 # Drawn by assets/make-screenshot.mjs from the program's own rendering code.
-# Marked so a redraw does not drown a review in one enormous diff.
-assets/screen.svg linguist-generated=true
+# Marked so a redraw does not drown a review in one enormous diff, and kept
+# byte for byte as written so that CI can redraw it and compare it exactly.
+assets/screen.svg -text linguist-generated=true
 assets/screen.png linguist-generated=true

@@ -62,7 +62,7 @@ function machine(created: Record<string, string>): Tree {
       [`${ROOT}\\D--work-projects-example-dev`]: [BLOG],
       [`${ROOT}\\chrome-shot-profile`]: ['Crashpad'],
       'D:\\': ['work', 'Temp'],
-      'D:\\work': ['ds', 'whotop'],
+      'D:\\work': ['projects', 'whotop'],
       'D:\\work\\projects': ['shop-web', 'example.dev'],
       'D:\\work\\projects\\shop-web': [],
       'D:\\work\\projects\\example.dev': [],
@@ -186,7 +186,7 @@ describe('matchTrace', () => {
           [ROOT]: ['D--work-projects-shop-web'],
           [`${ROOT}\\D--work-projects-shop-web`]: [SOCIAL, BLOG],
           'D:\\': ['work'],
-          'D:\\work': ['ds'],
+          'D:\\work': ['projects'],
           'D:\\work\\projects': ['shop-web'],
           'D:\\work\\projects\\shop-web': [],
         },
@@ -261,7 +261,7 @@ describe('decoding a directory name back into a path', () => {
 
   /**
    * The encoding flattens every punctuation character to a dash, so
-   * `example.dev` and `example-dev` and `dimhold\by` are the same name. Only the
+   * `example.dev` and `example-dev` and `example\by` are the same name. Only the
    * disk can say which one it was, which is why the decoder asks it.
    */
   it('recovers a character the encoding threw away', () => {
@@ -294,7 +294,7 @@ describe('decoding a directory name back into a path', () => {
 
   it('encodes the way the tools do', () => {
     expect(encodePathSegment('shop-web')).toBe('shop-web');
-    expect(encodePathSegment('example.dev')).toBe('dimhold-by');
+    expect(encodePathSegment('example.dev')).toBe('example-dev');
     expect(encodePathSegment('my app_2')).toBe('my-app-2');
   });
 });
