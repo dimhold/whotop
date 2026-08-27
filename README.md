@@ -232,6 +232,34 @@ The parsers are tested against captured fixtures of real `ss`, `lsof`, `/proc` a
 
 Pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) covers what the code is trying to be, how to add a role rule or a parser fixture, and where help is wanted. Vulnerabilities go to [SECURITY.md](SECURITY.md) rather than to an issue, and the changes in each release are in [CHANGELOG.md](CHANGELOG.md).
 
+## Prior work
+
+Checked 2026-08-27. Process monitors are one of the oldest crowded niches in
+tooling, so the list is long.
+
+- [htop](https://github.com/htop-dev/htop) (8.3k stars),
+  [btop](https://github.com/aristocratos/btop) (34k),
+  [bottom](https://github.com/ClementTsang/bottom) (14k) and
+  [glances](https://github.com/nicolargo/glances) (33k) are system monitors.
+  They show CPU and memory per pid and leave the command line to you.
+- [procs](https://github.com/dalance/procs) (6.1k) is the closest neighbor: a
+  modern ps that shows TCP and UDP ports next to each process. It does not
+  read the command line to say what a process is.
+- [fkill-cli](https://github.com/sindresorhus/fkill-cli) (7k) and
+  [pik](https://github.com/jacek-kurlit/pik) (570) are interactive killers.
+  [port-killer](https://github.com/productdevbook/port-killer) (5k),
+  [killport](https://github.com/jkfran/killport) (1.8k) and
+  [kill-port](https://github.com/tiaanduplessis/kill-port) (567) kill the
+  holder of a port without telling you much about what you are about to kill.
+- [somo](https://github.com/theopfr/somo) (2.6k) is a friendlier netstat.
+  lsof, ss and netstat answer "which pid holds this port" and stop there.
+
+What none of them do is the join this tool exists for: read what is actually in
+each command line so six processes named node become a vite, a vitest and an
+MCP server, say which project each belongs to, flag the orphan whose parent
+shell is gone and show the rule behind every conclusion. The listing half of
+the niche is dense. The naming half was empty when I needed it.
+
 ## License
 
 MIT. Copyright (c) 2026 Dmitriy Semenkevich.
