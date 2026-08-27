@@ -1,5 +1,7 @@
 # whotop
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22128860.svg)](https://doi.org/10.5281/zenodo.22128860)
+
 <p align="center">
   <a href="https://www.npmjs.com/package/whotop"><img alt="npm" src="https://img.shields.io/npm/v/whotop?color=%23cb3837&label=npm"></a>
   <a href="https://github.com/dimhold/whotop/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/dimhold/whotop/actions/workflows/ci.yml/badge.svg"></a>
