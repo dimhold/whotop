@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this work, please cite it as below."
+title: "whotop"
+type: software
+authors:
+  - family-names: Semenkevich
+    given-names: Dmitriy
+    orcid: "https://orcid.org/0009-0009-3013-4978"
+version: "0.4.0"
+date-released: "2026-08-27"
+license: MIT
+repository-code: "https://github.com/dimhold/whotop"
+abstract: "See what each process really is and which port it holds. Reads the command line so every node becomes vite, vitest or an mcp server."
+keywords:
+  - "process monitor"
+  - "developer tools"
+  - "ports"
+  - "command line"
