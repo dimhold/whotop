@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The interactive screen padded every pid to six characters, so on a machine
+  handing out seven-digit pids (Linux `pid_max` is 4194304, and a server up a
+  few weeks gets there) those rows pushed their role and middle column one
+  character right. The pid column is now measured across the list, with the
+  old six-digit width as its floor.
 - A collector that could not read the machine printed the whole command it
   had tried, and on Windows that is four kilobytes of base64 PowerShell. It
   says what went wrong in a sentence now.
