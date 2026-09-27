@@ -8,6 +8,8 @@ import {
   PANE_HEIGHT,
   paneHeightFor,
   renderRow,
+  pidColumnWidth,
+  MIN_PID_WIDTH,
   indexOfPid,
   initialState,
   matchesSearch,
@@ -209,6 +211,43 @@ describe('renderRow', () => {
   it('keeps the end of a path rather than the start', () => {
     const deep = view({ cwd: exact('C:\\Users\\dev\\a\\b\\c\\d\\e\\f\\g\\shop-web') });
     expect(renderRow(deep, 70, false, plain, 'where')).toContain('shop-web');
+  });
+
+  /**
+   * The bug this guards: a Linux box up a few weeks hands out seven-digit
+   * pids, and beside a six-digit one every column after the pid moved a
+   * character to the right on that row alone.
+   */
+  it('lines the role column up whatever the pid is wide', () => {
+    const rows = [view({ pid: 943991 }), view({ pid: 1041547 })];
+    const wide = pidColumnWidth(rows);
+    const drawn = rows.map((row) => renderRow(row, 100, false, plain, 'what', wide).indexOf('dev-server'));
+    expect(new Set(drawn).size).toBe(1);
+  });
+
+  it('still fits the width it was given once the pid column grows', () => {
+    const long = view({ pid: 4194303, commandLine: exact('node ' + 'x'.repeat(400)) });
+    const wide = pidColumnWidth([long]);
+    for (const mode of ['what', 'where', 'command'] as const) {
+      expect(renderRow(long, 100, false, plain, mode, wide).length).toBeLessThanOrEqual(100);
+      expect(renderRow(long, 100, true, plain, mode, wide).length).toBeLessThanOrEqual(100);
+    }
+  });
+});
+
+describe('pidColumnWidth', () => {
+  /** Holding the floor is what keeps short-pid machines looking unchanged. */
+  it('keeps the six-digit floor when every pid is smaller', () => {
+    expect(pidColumnWidth([view({ pid: 1 }), view({ pid: 9120 })])).toBe(MIN_PID_WIDTH);
+  });
+
+  it('widens to the longest pid on screen', () => {
+    expect(pidColumnWidth([view({ pid: 9120 }), view({ pid: 1041547 })])).toBe(7);
+  });
+
+  /** An empty list is the state between a filter and its first match. */
+  it('has an answer for a list with nothing in it', () => {
+    expect(pidColumnWidth([])).toBe(MIN_PID_WIDTH);
   });
 });
 

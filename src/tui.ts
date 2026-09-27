@@ -211,6 +211,29 @@ export function columnText(view: ProcessView, mode: ColumnMode): string {
   }
 }
 
+/**
+ * The narrowest the pid column is ever drawn. Six digits covers a desktop, and
+ * holding that floor keeps short-pid machines looking as they always have.
+ */
+export const MIN_PID_WIDTH = 6;
+
+/**
+ * The width the pid column needs for a given list of rows.
+ *
+ * Six was hard-coded here, which is one character short of what Linux hands
+ * out on a machine that has been up a few weeks: `pid_max` is 4194304, so
+ * seven digits are ordinary on exactly the long-lived servers with the most
+ * processes to read. A pid that overflowed its column pushed the role and the
+ * middle column of that one row a character to the right, so the list stopped
+ * lining up wherever old and new processes sat next to each other. The plain
+ * listing never had the bug because `render.ts` measures its columns.
+ *
+ * Measured over the whole filtered list rather than the visible slice, so
+ * scrolling does not shift the columns under the cursor.
+ */
+export const pidColumnWidth = (rows: readonly ProcessView[]): number =>
+  rows.reduce((widest, row) => Math.max(widest, String(row.pid).length), MIN_PID_WIDTH);
+
 /** One row of the list. Kept pure so the tests can read what a person sees. */
 export function renderRow(
   view: ProcessView,
@@ -218,8 +241,9 @@ export function renderRow(
   selected: boolean,
   palette: Palette,
   mode: ColumnMode = 'what',
+  pidWidth: number = MIN_PID_WIDTH,
 ): string {
-  const pid = String(view.pid).padStart(6);
+  const pid = String(view.pid).padStart(pidWidth);
   const role = padEndVisible(view.classification.role, 18);
   const ports = formatPorts(view.ports);
   const age = formatAge(view.ageMs).padStart(8);
@@ -461,8 +485,9 @@ export async function runTui(deps: TuiDeps): Promise<void> {
       state = { ...state, offset: windowOffset(index, listHeight, state.offset, rows.length) };
 
       const slice = rows.slice(state.offset, state.offset + listHeight);
+      const pidWidth = pidColumnWidth(rows);
       for (const [i, view] of slice.entries()) {
-        lines.push(renderRow(view, width, state.offset + i === index, palette, state.columns));
+        lines.push(renderRow(view, width, state.offset + i === index, palette, state.columns, pidWidth));
       }
       for (let i = slice.length; i < listHeight; i += 1) lines.push('');
       if (slice.length === 0) lines[1] = palette('gray', '  nothing matches');
