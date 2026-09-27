@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-09-28
+
+The first npm release since 0.3.0. There was never a 0.4.0 on npm: that
+number went to an archive-only GitHub release, cut on 2026-08-27 to give the
+project a citable DOI, so npm goes straight from 0.3.0 to 0.4.1.
+
 ### Changed
 
 - The dev toolchain moved to TypeScript 7 and vitest 4. The test suite now
@@ -24,6 +30,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A collector that could not read the machine printed the whole command it
   had tried, and on Windows that is four kilobytes of base64 PowerShell. It
   says what went wrong in a sentence now.
+
+## [0.4.0] - 2026-08-27
+
+Archive-only release on GitHub and Zenodo, not published to npm. The package
+is the same as 0.3.0; the repository gained `CITATION.cff`, a DOI badge and a
+Prior work section in the README.
 
 ## [0.3.0] - 2026-08-20
 
@@ -174,7 +186,9 @@ First release.
 - **Zero runtime dependencies**, so `npx whotop` is one download with no supply
   chain to audit.
 
-[Unreleased]: https://github.com/dimhold/whotop/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/dimhold/whotop/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/dimhold/whotop/compare/v0.4.0...v0.4.1
+[0.4.0]: https://github.com/dimhold/whotop/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/dimhold/whotop/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/dimhold/whotop/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/dimhold/whotop/releases/tag/v0.1.0
