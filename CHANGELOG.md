@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-10-22
+
+No change to what whotop does.
+
+### Changed
+
+- Early commits in the repository history carried the author's own machine
+  paths in the README example and in test fixtures. Commit ab8e9de had
+  already replaced them with the `shop-web` examples in the working tree;
+  the history has now been rewritten so the older commits use the same
+  examples. Commit hashes and tags before this release changed as a result.
+  The 0.2.0 package on npm still carries the old README example.
+- `CITATION.cff` now records the concept DOI.
+
 ## [0.4.1] - 2026-09-28
 
 The first npm release since 0.3.0. There was never a 0.4.0 on npm: that
@@ -186,7 +200,8 @@ First release.
 - **Zero runtime dependencies**, so `npx whotop` is one download with no supply
   chain to audit.
 
-[Unreleased]: https://github.com/dimhold/whotop/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/dimhold/whotop/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/dimhold/whotop/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/dimhold/whotop/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/dimhold/whotop/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/dimhold/whotop/compare/v0.2.0...v0.3.0

@@ -6,8 +6,9 @@ authors:
   - family-names: Semenkevich
     given-names: Dmitriy
     orcid: "https://orcid.org/0009-0009-3013-4978"
-version: "0.4.1"
-date-released: "2026-09-28"
+version: "0.4.2"
+doi: "10.5281/zenodo.22128860"
+date-released: "2026-10-22"
 license: MIT
 repository-code: "https://github.com/dimhold/whotop"
 abstract: "See what each process really is and which port it holds. Reads the command line so every node becomes vite, vitest or an mcp server."
